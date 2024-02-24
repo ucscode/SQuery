@@ -22,6 +22,9 @@
             "Ucscode\\SQuery\\Tests\\": "tests/"
         }
     },
+    "require-dev": {
+        "phpunit/phpunit": "^10"
+    },
     "minimum-stability": "stable",
     "prefer-stable": true
 }

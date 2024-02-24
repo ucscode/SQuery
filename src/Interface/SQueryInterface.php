@@ -2,21 +2,29 @@
 
 namespace Ucscode\SQuery\Interface;
 
-interface SQueryInterface
+use Ucscode\SQuery\Condition;
+use Ucscode\SQuery\Join;
+
+interface SQueryInterface extends SQueryConstantInterface
 {
-    public const KEYWORD_INSERT = 'INSERT';
-    public const KEYWORD_SELECT = 'SELECT';
-    public const KEYWORD_UPDATE = 'UPDATE';
-    public const KEYWORD_DELETE = 'DELETE';
-    public const KEYWORD_VALUES = 'VALUES';
-    public const KEYWORD_FROM = 'FROM';
-    public const KEYWORD_JOIN = 'JOIN';
-    public const KEYWORD_WHERE = 'WHERE';
-    public const KEYWORD_GROUP_BY = 'GROUP BY';
-    public const KEYWORD_HAVING = 'HAVING';
-    public const KEYWORD_ORDER_BY = 'ORDER BY';
-    public const KEYWORD_LIMIT = 'LIMIT';
-    public const KEYWORD_OFFSET = 'OFFSET';
-    public const KEYWORD_AND = 'AND';
-    public const KEYWORD_OR = 'OR';
+    public function build(): string;
+
+    public function select(string|array $columns): self;
+    public function update(string $table, array $keyValues): self;
+    public function insert(string $table, array $keyValues): self;
+    public function delete(): self;
+
+    public function from(string $table, string $alias = null): self;
+    public function innerJoin(Join $join): self;
+    public function leftJoin(Join $join): self;
+    public function rightJoin(Join $join): self;
+
+    public function where(Condition $condition): self;
+    public function groupBy(string|array $group): self;
+    public function orderBy(string|array $order, string $direction): self;
+    public function having(Condition $condition): self;
+    public function limit(?int $limit, ?int $offset): self;
+    public function offset(?int $offset): self;
+
+    public function getWhereCondition(): Condition;
 }

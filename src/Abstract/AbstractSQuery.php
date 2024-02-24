@@ -5,6 +5,7 @@ namespace Ucscode\SQuery\Abstract;
 use Ucscode\SQuery\Interface\SQueryInterface;
 use Ucscode\SQuery\Trait\SQueryTrait;
 use Ucscode\SQuery\Condition;
+use Ucscode\SQuery\Join;
 
 abstract class AbstractSQuery implements SQueryInterface
 {
@@ -14,14 +15,13 @@ abstract class AbstractSQuery implements SQueryInterface
     protected array $table = [];
     protected array $columns = [];
     protected array $values = [];
+    protected array $join = [];
     protected Condition $where;
     protected array $group_by = [];
     protected Condition $having;
     protected array $order_by = [];
     protected ?int $limit = null;
     protected ?int $offset = null;
-
-    abstract public function from(string $table);
 
     public function __construct()
     {
@@ -33,47 +33,19 @@ abstract class AbstractSQuery implements SQueryInterface
     {
         switch($this->DMLS) {
             case self::KEYWORD_SELECT:
-                $syntax = [
-                    $this->DMLS . ' ' . implode(", ", $this->columns),
-                    self::KEYWORD_FROM . ' ' . implode(' AS ', $this->table),
-                    $this->where->build(self::KEYWORD_WHERE),
-                    !empty($this->group_by) ? self::KEYWORD_GROUP_BY . ' ' . implode(", ", $this->group_by) : null,
-                    $this->having->build(self::KEYWORD_HAVING),
-                    !empty($this->order_by) ? self::KEYWORD_ORDER_BY . ' ' . implode(", ", $this->order_by) : null,
-                    !is_null($this->limit) ? self::KEYWORD_LIMIT . ' ' . $this->limit : null,
-                    !is_null($this->offset) && !is_null($this->limit) ? self::KEYWORD_OFFSET . ' ' . $this->offset : null,
-                ];
+                $syntax = $this->buildSelectStatement();
                 break;
 
             case self::KEYWORD_INSERT:
-                $syntax = [
-                    $this->DMLS . ' INTO ' . $this->table[0],
-                    '(' . implode(", ", $this->columns) . ')',
-                    'VALUES',
-                    '(' . implode(", ", $this->values) . ')',
-                ];
+                $syntax = $this->buildInsertStatement();
                 break;
 
             case self::KEYWORD_UPDATE:
-                $syntax = [
-                    $this->DMLS . ' ' . $this->table[0] . ' SET',
-                    call_user_func(function () {
-                        $formation = [];
-                        foreach(array_combine($this->columns, $this->values) as $key => $value) {
-                            $formation[] = "{$key} = {$value}";
-                        }
-                        return implode(",\n", $formation);
-                    }),
-                    $this->where->build(self::KEYWORD_WHERE)
-                ];
+                $syntax = $this->buildUpdateStatement();
                 break;
 
             case self::KEYWORD_DELETE:
-                $syntax = [
-                    $this->DMLS,
-                    self::KEYWORD_FROM . ' ' . $this->table[0],
-                    $this->where->build(self::KEYWORD_WHERE)
-                ];
+                $syntax = $this->buildDeleteStatement();
                 break;
 
             default:
@@ -97,6 +69,94 @@ abstract class AbstractSQuery implements SQueryInterface
         $this->DMLS = $dmls;
     }
 
+    protected function buildSelectStatement(): array
+    {
+        $statement = [
+            $this->DMLS . ' ' . implode(", ", $this->columns),
+            self::KEYWORD_FROM . ' ' . implode(' AS ', $this->table),
+        ];
+
+        foreach($this->join as $joinContext) {
+            $statement[] = $joinContext['instance']->build($joinContext['prefix']);
+        }
+
+        $statement[] = $this->where->build(self::KEYWORD_WHERE);
+
+        $statement[] = empty($this->group_by) ? null : sprintf(
+            "%s %s %s",
+            self::KEYWORD_GROUP,
+            self::KEYWORD_BY,
+            implode(", ", $this->group_by)
+        );
+
+        $statement[] = $this->having->build(self::KEYWORD_HAVING);
+
+        $statement[] = empty($this->order_by) ? null : sprintf(
+            "%s %s %s",
+            self::KEYWORD_ORDER,
+            self::KEYWORD_BY,
+            implode(", ", $this->order_by)
+        );
+
+        $statement[] = is_null($this->limit) ? null : sprintf(
+            "%s %s",
+            self::KEYWORD_LIMIT,
+            $this->limit
+        );
+        
+        $statement[] = is_null($this->offset) || is_null($this->limit) ? null : sprintf(
+            "%s %s",
+            self::KEYWORD_OFFSET,
+            $this->offset
+        );
+
+        return $statement;
+    }
+
+    protected function buildInsertStatement(): array
+    {
+        return [
+            sprintf(
+                "%s %s %s",
+                $this->DMLS,
+                self::KEYWORD_INTO,
+                $this->table[0]
+            ),
+            sprintf('(%s)', implode(", ", $this->columns)),
+            'VALUES',
+            sprintf('(%s)', implode(", ", $this->values)),
+        ];
+    }
+
+    protected function buildUpdateStatement(): array
+    {
+        return [
+            sprintf(
+                "%s %s %s",
+                $this->DMLS,
+                $this->table[0],
+                self::KEYWORD_SET
+            ),
+            call_user_func(function () {
+                $formation = [];
+                foreach(array_combine($this->columns, $this->values) as $key => $value) {
+                    $formation[] = "{$key} = {$value}";
+                }
+                return implode(",\n", $formation);
+            }),
+            $this->where->build(self::KEYWORD_WHERE)
+        ];
+    }
+
+    protected function buildDeleteStatement(): array
+    {
+        return [
+            $this->DMLS,
+            self::KEYWORD_FROM . ' ' . $this->table[0],
+            $this->where->build(self::KEYWORD_WHERE)
+        ];
+    }
+
     protected function upsert(string $table, array $data): self
     {
         $this->from($table);
@@ -117,6 +177,19 @@ abstract class AbstractSQuery implements SQueryInterface
             $direction ? strtoupper($direction) : $direction
         ];
         $this->order_by[] = implode(" ", array_filter(array_map('trim', $context)));
+        return $this;
+    }
+
+    protected function appendJoin(string $joinPrefix, Join $join): self
+    {
+        $this->join[] = [
+            'prefix' => sprintf(
+                "%s %s",
+                $joinPrefix,
+                self::KEYWORD_JOIN
+            ),
+            'instance' => $join
+        ];
         return $this;
     }
 }

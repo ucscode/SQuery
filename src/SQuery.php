@@ -3,6 +3,7 @@
 namespace Ucscode\SQuery;
 
 use Ucscode\SQuery\Abstract\AbstractSQuery;
+use Ucscode\SQuery\Interface\SQueryInterface;
 
 /**
  * A simple SQL query builder class that provides methods for generating SQL statements.
@@ -42,6 +43,21 @@ class SQuery extends AbstractSQuery
     {
         $this->table = array_map([$this, 'tick'], array_filter([$table, $alias]));
         return $this;
+    }
+
+    public function innerJoin(Join $join): self
+    {
+        return $this->appendJoin(self::KEYWORD_INNER, $join);
+    }
+
+    public function leftJoin(Join $join): self
+    {
+        return $this->appendJoin(self::KEYWORD_LEFT, $join);
+    }
+
+    public function rightJoin(Join $join): self
+    {
+        return $this->appendJoin(self::KEYWORD_RIGHT, $join);
     }
 
     public function insert(string $table, array $data): self

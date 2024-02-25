@@ -40,8 +40,7 @@ $condition = new Condition();
 $condition
    ->add("u.vendor", "ucscode")
    ->and("u.namespace", "SQuery")
-   ->or("u.foundation", "Uss%", 'RLIKE')
-   ;
+   ->or("u.foundation", "Uss%", 'RLIKE');
 
 $squery
    ->select("u.username")
@@ -81,8 +80,7 @@ $condition
    ->add("user_id", 1)
    ->and('role', 'SUPER_ADMIN')
    ->or('username', 'spider-man', 'NOT')
-   ->and('finance', null, 'IS NOT')
-   ;
+   ->and('finance', null, 'IS NOT');
 
 $squery = new SQuery();
 $squery
@@ -104,6 +102,77 @@ $squery
    ->delete()
    ->from('tablename')
    ->where($condition);
+```
+
+## USING JOIN STATEMENT
+
+SQuery uses an instance of a `Join` object to create and manage different types of join statements. For Example:
+
+### LEFT JOIN EXAMPLE
+
+```php
+$squery = new SQuery();
+
+$squery
+   ->select([
+      "t1.*",
+      "t2.value",
+      "t1.status",
+   ])
+   ->from('tablename', "t1");
+
+// Left Join
+
+$leftJoin = new Join('table_2');
+
+$on = (new Condition())
+   ->add("t2.user_id", "t1.id")
+   ->and("t2.name", null);
+
+$leftJoin->setOn($on);
+$leftJoin->setAlias("t2");
+
+$squery->leftJoin($leftJoin);
+```
+
+The same applies to other join statement like `RIGHT JOIN`, `INNER JOIN` etc
+
+---
+
+The `Join` object literally accepts an `SQuery` object as it's first parameter, making it capable of handling complex `SQL` statement.
+
+### EXAMPLE
+
+```php
+$squery = new SQuery();
+
+$squery
+   ->select('*')
+   ->from('table_1', 't1');
+
+// Create Complex Join Statement;
+
+$rightJoinQuery = (new SQuery())
+   ->select("*")
+   ->from("table_2")
+   ->where(
+      (new Condition())
+         ->add("name", "ucscode")
+         ->and("age", 3, ">")
+   )
+   ->limit(7);
+
+$onCondition = (new Condition())
+   ->add("t1.port", "t2.port", null, false)
+   ->or("t1.status", null, 'IS NOT');
+
+$alias = "t2";
+
+$rightJoin = new Join($rightJoinQuery, $onCondition, $alias);
+
+// Add the Right Join Statement
+
+$squery->rightJoin($rightJoin);
 ```
 
 ## Warning!
